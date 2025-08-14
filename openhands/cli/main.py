@@ -573,6 +573,7 @@ async def main_with_loop(loop: asyncio.AbstractEventLoop, args) -> None:
 
     # Use settings from settings store if available and override with command line arguments
     if settings:
+        # settings.agent is not None because we check for it in setup_config_from_args
         if args.agent_cls:
             logger.info(f'----------args.agent_cls: {args.agent_cls}, args.agent_cls')
             config.default_agent = str(args.agent_cls)

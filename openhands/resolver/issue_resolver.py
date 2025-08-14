@@ -184,7 +184,7 @@ class IssueResolver:
         is_experimental: bool,
         runtime: str | None = None,
     ) -> OpenHandsConfig:
-        config.default_agent = 'TaskConvAgent'
+        config.default_agent = 'CodeActAgent'
         # Use provided runtime or fallback to config value or default to 'docker'
         config.runtime = runtime or config.runtime or 'docker'
         config.max_budget_per_task = 4

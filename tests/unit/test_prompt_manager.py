@@ -63,8 +63,16 @@ At the user's request, repository {{ repository_info.repo_name }} has been clone
     print("\n=== Testing without repository info ===")
     # First test case: Initialize PromptManager without any GitHub repository info
     manager = PromptManager(prompt_dir)
-    
-    # Verify basic template rendering
+    assert manager.get_system_message() == 'System prompt: bar'
+    assert manager.get_example_user_message() == 'User prompt: foo'
+
+    # Test with GitHub repo
+    manager = PromptManager(prompt_dir=prompt_dir)
+    repo_info = RepositoryInfo(
+        repo_name='owner/repo', repo_directory='/workspace/repo', branch_name='main'
+    )
+
+    # verify its parts are rendered
     system_msg = manager.get_system_message()
     print(f"System message (no repo):\n{system_msg}")
     assert system_msg == 'System prompt: bar'

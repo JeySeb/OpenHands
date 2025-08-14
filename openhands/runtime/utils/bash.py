@@ -79,8 +79,7 @@ def split_bash_commands(commands: str) -> list[str]:
 
 
 def escape_bash_special_chars(command: str) -> str:
-    r"""
-    Escapes characters that have different interpretations in bash vs python.
+    r"""Escapes characters that have different interpretations in bash vs python.
     Specifically handles escape sequences like \;, \|, \&, etc.
     """
     if command.strip() == '':
@@ -230,7 +229,7 @@ class BashSession:
         )
         self.pane = self.window.active_pane
         logger.debug(f'pane: {self.pane}; history_limit: {self.session.history_limit}')
-        _initial_window.kill_window()
+        _initial_window.kill()
 
         # Configure bash to use simple PS1 and disable PS2
         self.pane.send_keys(
@@ -268,7 +267,7 @@ class BashSession:
         """Clean up the session."""
         if self._closed:
             return
-        self.session.kill_session()
+        self.session.kill()
         self._closed = True
 
     @property
@@ -446,6 +445,7 @@ class BashSession:
             ps1_matches: List of regex matches for PS1 prompts
             get_content_before_last_match: when there's only one PS1 match, whether to get
                 the content before the last PS1 prompt (True) or after the last PS1 prompt (False)
+
         Returns:
             Combined string of all outputs between matches
         """

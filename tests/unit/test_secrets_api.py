@@ -1,6 +1,7 @@
 """Tests for the custom secrets API endpoints."""
 # flake8: noqa: E501
 
+import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -24,7 +25,12 @@ def test_client():
     """Create a test client for the settings API."""
     app = FastAPI()
     app.include_router(secrets_app)
-    return TestClient(app)
+
+    # Mock SESSION_API_KEY to None to disable authentication in tests
+    with patch.dict(os.environ, {'SESSION_API_KEY': ''}, clear=False):
+        # Clear the SESSION_API_KEY to disable auth dependency
+        with patch('openhands.server.dependencies._SESSION_API_KEY', None):
+            yield TestClient(app)
 
 
 @pytest.fixture
@@ -46,7 +52,6 @@ def file_secrets_store(temp_dir):
 @pytest.mark.asyncio
 async def test_load_custom_secrets_names(test_client, file_secrets_store):
     """Test loading custom secrets names."""
-
     # Create initial settings with custom secrets
     custom_secrets = {
         'API_KEY': CustomSecret(secret=SecretStr('api-key-value')),
@@ -112,7 +117,6 @@ async def test_load_custom_secrets_names_empty(test_client, file_secrets_store):
 @pytest.mark.asyncio
 async def test_add_custom_secret(test_client, file_secrets_store):
     """Test adding a new custom secret."""
-
     # Create initial settings with provider tokens but no custom secrets
     provider_tokens = {
         ProviderType.GITHUB: ProviderToken(token=SecretStr('github-token'))
@@ -143,7 +147,6 @@ async def test_create_custom_secret_with_no_existing_secrets(
     test_client, file_secrets_store
 ):
     """Test creating a custom secret when there are no existing secrets at all."""
-
     # Don't store any initial settings - this simulates a completely new user
     # or a situation where the secrets store is empty
 
@@ -174,7 +177,6 @@ async def test_create_custom_secret_with_no_existing_secrets(
 @pytest.mark.asyncio
 async def test_update_existing_custom_secret(test_client, file_secrets_store):
     """Test updating an existing custom secret's name and description (cannot change value once set)."""
-
     # Create initial settings with a custom secret
     custom_secrets = {'API_KEY': CustomSecret(secret=SecretStr('old-api-key'))}
     provider_tokens = {
@@ -212,7 +214,6 @@ async def test_update_existing_custom_secret(test_client, file_secrets_store):
 @pytest.mark.asyncio
 async def test_add_multiple_custom_secrets(test_client, file_secrets_store):
     """Test adding multiple custom secrets at once."""
-
     # Create initial settings with one custom secret
     custom_secrets = {
         'EXISTING_SECRET': CustomSecret(secret=SecretStr('existing-value'))
@@ -274,7 +275,6 @@ async def test_add_multiple_custom_secrets(test_client, file_secrets_store):
 @pytest.mark.asyncio
 async def test_delete_custom_secret(test_client, file_secrets_store):
     """Test deleting a custom secret."""
-
     # Create initial settings with multiple custom secrets
     custom_secrets = {
         'API_KEY': CustomSecret(secret=SecretStr('api-key-value')),
@@ -314,7 +314,6 @@ async def test_delete_custom_secret(test_client, file_secrets_store):
 @pytest.mark.asyncio
 async def test_delete_nonexistent_custom_secret(test_client, file_secrets_store):
     """Test deleting a custom secret that doesn't exist."""
-
     # Create initial settings with a custom secret
     custom_secrets = {
         'API_KEY': CustomSecret(secret=SecretStr('api-key-value'), description='')

@@ -15,15 +15,29 @@ export const useAutoLogin = () => {
   // Get the stored login method
   const loginMethod = getLoginMethod();
 
-  // Get the auth URLs for both providers
+  // Get the auth URLs for all providers
   const githubAuthUrl = useAuthUrl({
     appMode: config?.APP_MODE || null,
     identityProvider: "github",
+    authUrl: config?.AUTH_URL,
   });
 
   const gitlabAuthUrl = useAuthUrl({
     appMode: config?.APP_MODE || null,
     identityProvider: "gitlab",
+    authUrl: config?.AUTH_URL,
+  });
+
+  const bitbucketAuthUrl = useAuthUrl({
+    appMode: config?.APP_MODE || null,
+    identityProvider: "bitbucket",
+    authUrl: config?.AUTH_URL,
+  });
+
+  const enterpriseSsoUrl = useAuthUrl({
+    appMode: config?.APP_MODE || null,
+    identityProvider: "enterprise_sso",
+    authUrl: config?.AUTH_URL,
   });
 
   useEffect(() => {
@@ -48,8 +62,16 @@ export const useAutoLogin = () => {
     }
 
     // Get the appropriate auth URL based on the stored login method
-    const authUrl =
-      loginMethod === LoginMethod.GITHUB ? githubAuthUrl : gitlabAuthUrl;
+    let authUrl: string | null = null;
+    if (loginMethod === LoginMethod.GITHUB) {
+      authUrl = githubAuthUrl;
+    } else if (loginMethod === LoginMethod.GITLAB) {
+      authUrl = gitlabAuthUrl;
+    } else if (loginMethod === LoginMethod.BITBUCKET) {
+      authUrl = bitbucketAuthUrl;
+    } else if (loginMethod === LoginMethod.ENTERPRISE_SSO) {
+      authUrl = enterpriseSsoUrl;
+    }
 
     // If we have an auth URL, redirect to it
     if (authUrl) {
@@ -68,5 +90,7 @@ export const useAutoLogin = () => {
     loginMethod,
     githubAuthUrl,
     gitlabAuthUrl,
+    bitbucketAuthUrl,
+    enterpriseSsoUrl,
   ]);
 };

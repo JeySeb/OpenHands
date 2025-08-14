@@ -37,8 +37,8 @@ from openhands.core.config import (
     AgentConfig,
     OpenHandsConfig,
     SandboxConfig,
+    get_evaluation_parser,
     get_llm_config_arg,
-    get_parser,
 )
 from openhands.core.logger import openhands_logger as logger
 from openhands.core.main import create_runtime, run_controller
@@ -491,7 +491,7 @@ def prepare_dataset_pre(dataset: pd.DataFrame, filter_column: str) -> pd.DataFra
 
 
 if __name__ == '__main__':
-    parser = get_parser()
+    parser = get_evaluation_parser()
     parser.add_argument(
         '--dataset',
         type=str,
@@ -539,7 +539,7 @@ if __name__ == '__main__':
     if args.llm_config:
         llm_config = get_llm_config_arg(args.llm_config)
         llm_config.log_completions = True
-        # modify_params must be False for evaluation purpose, for reproducibility and accurancy of results
+        # modify_params must be False for evaluation purpose, for reproducibility and accuracy of results
         llm_config.modify_params = False
 
     if llm_config is None:

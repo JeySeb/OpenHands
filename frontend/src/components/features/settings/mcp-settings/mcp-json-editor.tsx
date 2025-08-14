@@ -1,22 +1,40 @@
-import React, { useState } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, useRef, useEffect } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { MCPConfig } from "#/types/settings";
 import { I18nKey } from "#/i18n/declaration";
 import { BrandButton } from "../brand-button";
+import { cn } from "#/utils/utils";
 
 interface MCPJsonEditorProps {
   mcpConfig?: MCPConfig;
   onChange: (config: MCPConfig) => void;
+  onCancel: () => void;
 }
 
-export function MCPJsonEditor({ mcpConfig, onChange }: MCPJsonEditorProps) {
+const MCP_DEFAULT_CONFIG: MCPConfig = {
+  sse_servers: [],
+  stdio_servers: [],
+};
+
+export function MCPJsonEditor({
+  mcpConfig,
+  onChange,
+  onCancel,
+}: MCPJsonEditorProps) {
   const { t } = useTranslation();
   const [configText, setConfigText] = useState(() =>
     mcpConfig
       ? JSON.stringify(mcpConfig, null, 2)
-      : t(I18nKey.SETTINGS$MCP_DEFAULT_CONFIG),
+      : JSON.stringify(MCP_DEFAULT_CONFIG, null, 2),
   );
+
   const [error, setError] = useState<string | null>(null);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setConfigText(e.target.value);
@@ -65,11 +83,32 @@ export function MCPJsonEditor({ mcpConfig, onChange }: MCPJsonEditorProps) {
 
   return (
     <div>
-      <div className="mb-2 text-sm text-gray-400">
-        {t(I18nKey.SETTINGS$MCP_CONFIG_DESCRIPTION)}
-      </div>
+      <p className="mb-2 text-sm text-gray-400">
+        <Trans
+          i18nKey={I18nKey.SETTINGS$MCP_CONFIG_DESCRIPTION}
+          components={{
+            a: (
+              <a
+                href="https://docs.all-hands.dev/usage/mcp"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:underline"
+              >
+                documentation
+              </a>
+            ),
+          }}
+        />
+      </p>
       <textarea
-        className="w-full h-64 p-2 text-sm font-mono bg-base-tertiary rounded-md focus:border-blue-500 focus:outline-hidden"
+        ref={textareaRef}
+        className={cn(
+          "w-full h-64 resize-y p-2 rounded-sm text-sm font-mono",
+          "bg-tertiary border border-[#717888]",
+          "placeholder:italic placeholder:text-tertiary-alt",
+          "focus:outline-none focus:ring-1 focus:ring-primary",
+          "disabled:bg-[#2D2F36] disabled:border-[#2D2F36] disabled:cursor-not-allowed",
+        )}
         value={configText}
         onChange={handleTextChange}
         spellCheck="false"
@@ -87,9 +126,12 @@ export function MCPJsonEditor({ mcpConfig, onChange }: MCPJsonEditorProps) {
           }
         </code>
       </div>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex justify-end gap-3">
+        <BrandButton type="button" variant="secondary" onClick={onCancel}>
+          {t(I18nKey.BUTTON$CANCEL)}
+        </BrandButton>
         <BrandButton type="button" variant="primary" onClick={handleSave}>
-          {t(I18nKey.SETTINGS$MCP_APPLY_CHANGES)}
+          {t(I18nKey.SETTINGS$MCP_PREVIEW_CHANGES)}
         </BrandButton>
       </div>
     </div>

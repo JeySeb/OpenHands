@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from openhands.core.schema.agent import AgentState
 from openhands.integrations.service_types import ProviderType
 from openhands.runtime.runtime_status import RuntimeStatus
 from openhands.storage.data_models.conversation_metadata import ConversationTrigger
@@ -10,8 +9,7 @@ from openhands.storage.data_models.conversation_status import ConversationStatus
 
 @dataclass
 class ConversationInfo:
-    """
-    Information about a conversation. This combines conversation metadata with
+    """Information about a conversation. This combines conversation metadata with
     information on whether a conversation is currently running
     """
 
@@ -28,3 +26,4 @@ class ConversationInfo:
     url: str | None = None
     session_api_key: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    pr_number: list[int] = field(default_factory=list)

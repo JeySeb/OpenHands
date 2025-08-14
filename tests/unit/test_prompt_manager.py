@@ -3,6 +3,7 @@ import shutil
 
 import pytest
 
+from openhands.controller.state.control_flags import IterationControlFlag
 from openhands.controller.state.state import State
 from openhands.core.message import Message, TextContent
 from openhands.events.observation.agent import MicroagentKnowledge
@@ -25,15 +26,31 @@ def prompt_dir(tmp_path):
     # Return the temporary directory path
     return tmp_path
 
-
 def test_prompt_manager_template_rendering(prompt_dir):
-    """Test PromptManager's template rendering functionality."""
-    # Create temporary template files
-    with open(os.path.join(prompt_dir, 'system_prompt.j2'), 'w') as f:
+    """Test PromptManager's template rendering functionality.
+    
+    This test verifies that the PromptManager correctly renders Jinja2 templates
+    for system prompts, user prompts, and additional context information. It tests
+    both basic template rendering and template rendering with repository information.
+    """
+    # Create temporary template files with test content
+    print("\n=== Creating test template files ===")
+    
+    # System prompt template - a simple static message
+    system_template_path = os.path.join(prompt_dir, 'system_prompt.j2')
+    with open(system_template_path, 'w') as f:
         f.write("""System prompt: bar""")
-    with open(os.path.join(prompt_dir, 'user_prompt.j2'), 'w') as f:
+    print(f"Created system prompt template at: {system_template_path}")
+    
+    # User prompt template - another simple static message
+    user_template_path = os.path.join(prompt_dir, 'user_prompt.j2')
+    with open(user_template_path, 'w') as f:
         f.write('User prompt: foo')
-    with open(os.path.join(prompt_dir, 'additional_info.j2'), 'w') as f:
+    print(f"Created user prompt template at: {user_template_path}")
+    
+    # Additional info template - includes conditional repository information
+    additional_info_path = os.path.join(prompt_dir, 'additional_info.j2')
+    with open(additional_info_path, 'w') as f:
         f.write("""
 {% if repository_info %}
 <REPOSITORY_INFO>
@@ -41,39 +58,63 @@ At the user's request, repository {{ repository_info.repo_name }} has been clone
 </REPOSITORY_INFO>
 {% endif %}
 """)
+    print(f"Created additional info template at: {additional_info_path}")
 
-    # Test without GitHub repo
+    print("\n=== Testing without repository info ===")
+    # First test case: Initialize PromptManager without any GitHub repository info
     manager = PromptManager(prompt_dir)
-    assert manager.get_system_message() == 'System prompt: bar'
-    assert manager.get_example_user_message() == 'User prompt: foo'
-
-    # Test with GitHub repo
-    manager = PromptManager(prompt_dir=prompt_dir)
-    repo_info = RepositoryInfo(repo_name='owner/repo', repo_directory='/workspace/repo')
-
-    # verify its parts are rendered
+    
+    # Verify basic template rendering
     system_msg = manager.get_system_message()
+    print(f"System message (no repo):\n{system_msg}")
+    assert system_msg == 'System prompt: bar'
+    
+    user_msg = manager.get_example_user_message()
+    print(f"User message (no repo):\n{user_msg}")
+    assert user_msg == 'User prompt: foo'
+
+    print("\n=== Testing with repository info ===")
+    # Second test case: Test with GitHub repository information
+    manager = PromptManager(prompt_dir=prompt_dir)
+    repo_info = RepositoryInfo(
+        repo_name='owner/repo', repo_directory='/workspace/repo', branch_name='main'
+    )
+
+    # Verify system message with repo context
+    system_msg = manager.get_system_message()
+    print(f"System message (with repo):\n{system_msg}")
     assert 'System prompt: bar' in system_msg
 
-    # Test building additional info
+    # Test building additional workspace context
+    print("\n=== Testing additional workspace context ===")
     additional_info = manager.build_workspace_context(
         repository_info=repo_info,
         runtime_info=None,
         repo_instructions='',
         conversation_instructions=None,
     )
+    print(f"Generated additional info:\n{additional_info}")
+    
+    # Verify repository information rendering
     assert '<REPOSITORY_INFO>' in additional_info
     assert (
         "At the user's request, repository owner/repo has been cloned to the current working directory /workspace/repo."
         in additional_info
     )
     assert '</REPOSITORY_INFO>' in additional_info
-    assert manager.get_example_user_message() == 'User prompt: foo'
+    
+    user_msg = manager.get_example_user_message()
+    print(f"User message (with repo):\n{user_msg}")
+    assert user_msg == 'User prompt: foo'
 
+    print("\n=== Cleaning up test files ===")
     # Clean up temporary files
-    os.remove(os.path.join(prompt_dir, 'system_prompt.j2'))
-    os.remove(os.path.join(prompt_dir, 'user_prompt.j2'))
-    os.remove(os.path.join(prompt_dir, 'additional_info.j2'))
+    os.remove(system_template_path)
+    print(f"Removed: {system_template_path}")
+    os.remove(user_template_path)
+    print(f"Removed: {user_template_path}")
+    os.remove(additional_info_path)
+    print(f"Removed: {additional_info_path}")
 
 
 def test_prompt_manager_file_not_found(prompt_dir):
@@ -161,9 +202,11 @@ def test_add_turns_left_reminder(prompt_dir):
     manager = PromptManager(prompt_dir=prompt_dir)
 
     # Create a State object with specific iteration values
-    state = State()
-    state.iteration = 3
-    state.max_iterations = 10
+    state = State(
+        iteration_flag=IterationControlFlag(
+            current_value=3, max_value=10, limit_increase_amount=10
+        )
+    )
 
     # Create a list of messages with a user message
     user_message = Message(role='user', content=[TextContent(text='User content')])
@@ -228,11 +271,14 @@ Today's date is {{ runtime_info.date }}
     manager = PromptManager(prompt_dir=prompt_dir)
 
     # Create repository and runtime information
-    repo_info = RepositoryInfo(repo_name='owner/repo', repo_directory='/workspace/repo')
+    repo_info = RepositoryInfo(
+        repo_name='owner/repo', repo_directory='/workspace/repo', branch_name='main'
+    )
     runtime_info = RuntimeInfo(
         date='02/12/1232',
         available_hosts={'example.com': 8080},
         additional_agent_instructions='You know everything about this runtime.',
+        working_dir='/workspace',
     )
     repo_instructions = 'This repository contains important code.'
 
@@ -266,3 +312,120 @@ def test_prompt_manager_initialization_error():
     """Test that PromptManager raises an error if the prompt directory is not set."""
     with pytest.raises(ValueError, match='Prompt directory is not set'):
         PromptManager(None)
+
+
+def test_prompt_manager_custom_system_prompt_filename(prompt_dir):
+    """Test that PromptManager can use a custom system prompt filename."""
+    # Create a custom system prompt file
+    with open(os.path.join(prompt_dir, 'custom_system.j2'), 'w') as f:
+        f.write('Custom system prompt: {{ custom_var }}')
+
+    # Create default system prompt
+    with open(os.path.join(prompt_dir, 'system_prompt.j2'), 'w') as f:
+        f.write('Default system prompt')
+
+    # Test with custom system prompt filename
+    manager = PromptManager(
+        prompt_dir=prompt_dir, system_prompt_filename='custom_system.j2'
+    )
+    system_msg = manager.get_system_message()
+    assert 'Custom system prompt:' in system_msg
+
+    # Test without custom system prompt filename (should use default)
+    manager_default = PromptManager(prompt_dir=prompt_dir)
+    default_msg = manager_default.get_system_message()
+    assert 'Default system prompt' in default_msg
+
+    # Clean up
+    os.remove(os.path.join(prompt_dir, 'custom_system.j2'))
+    os.remove(os.path.join(prompt_dir, 'system_prompt.j2'))
+
+
+def test_prompt_manager_custom_system_prompt_filename_not_found(prompt_dir):
+    """Test that PromptManager raises an error if custom system prompt file is not found."""
+    with pytest.raises(
+        FileNotFoundError,
+        match=r'Prompt file .*/non_existent\.j2 not found',
+    ):
+        PromptManager(prompt_dir=prompt_dir, system_prompt_filename='non_existent.j2')
+
+
+def test_jinja2_template_inheritance(prompt_dir):
+    """Test that PromptManager._load_template works with Jinja2 template inclusion.
+
+    This test demonstrates that we can use {% include %} to import a base system_prompt.j2
+    into other templates without defining any blocks in the base template, and that
+    PromptManager._load_template can load these templates correctly.
+    """
+    # Create base system prompt template (no blocks defined here)
+    with open(os.path.join(prompt_dir, 'system_prompt.j2'), 'w') as f:
+        f.write("""You are OpenHands agent, a helpful AI assistant that can interact with a computer to solve tasks.
+
+<ROLE>
+Your primary role is to assist users by executing commands, modifying code, and solving technical problems effectively.
+</ROLE>
+""")
+
+    # Create interactive system prompt that imports the base template and adds content
+    with open(os.path.join(prompt_dir, 'system_prompt_interactive.j2'), 'w') as f:
+        f.write("""{% include "system_prompt.j2" %}
+
+<INTERACTION_RULES>
+1. Always respond in a friendly, helpful manner
+2. Ask clarifying questions when needed
+3. Provide step-by-step explanations
+</INTERACTION_RULES>
+""")
+
+    # Create long horizon system prompt that imports the base template and adds content
+    with open(os.path.join(prompt_dir, 'system_prompt_long_horizon.j2'), 'w') as f:
+        f.write("""{% include "system_prompt.j2" %}
+
+<TASK_MANAGEMENT>
+1. Break down complex tasks into smaller steps
+2. Track progress through a TODO list
+3. Focus on one task at a time
+</TASK_MANAGEMENT>
+""")
+
+    # Test PromptManager._load_template with base system prompt
+    base_manager = PromptManager(prompt_dir=prompt_dir)
+    base_template = base_manager._load_template('system_prompt.j2')
+    base_msg = base_template.render().strip()
+    assert 'You are OpenHands agent' in base_msg
+    assert '<ROLE>' in base_msg
+    assert '<INTERACTION_RULES>' not in base_msg
+    assert '<TASK_MANAGEMENT>' not in base_msg
+
+    # Test PromptManager._load_template with interactive system prompt
+    interactive_manager = PromptManager(
+        prompt_dir=prompt_dir, system_prompt_filename='system_prompt_interactive.j2'
+    )
+    interactive_template = interactive_manager._load_template(
+        'system_prompt_interactive.j2'
+    )
+    interactive_msg = interactive_template.render().strip()
+    assert 'You are OpenHands agent' in interactive_msg
+    assert '<ROLE>' in interactive_msg
+    assert '<INTERACTION_RULES>' in interactive_msg
+    assert 'Ask clarifying questions when needed' in interactive_msg
+    assert '<TASK_MANAGEMENT>' not in interactive_msg
+
+    # Test PromptManager._load_template with long horizon system prompt
+    long_horizon_manager = PromptManager(
+        prompt_dir=prompt_dir, system_prompt_filename='system_prompt_long_horizon.j2'
+    )
+    long_horizon_template = long_horizon_manager._load_template(
+        'system_prompt_long_horizon.j2'
+    )
+    long_horizon_msg = long_horizon_template.render().strip()
+    assert 'You are OpenHands agent' in long_horizon_msg
+    assert '<ROLE>' in long_horizon_msg
+    assert '<INTERACTION_RULES>' not in long_horizon_msg
+    assert '<TASK_MANAGEMENT>' in long_horizon_msg
+    assert 'Track progress through a TODO list' in long_horizon_msg
+
+    # Clean up
+    os.remove(os.path.join(prompt_dir, 'system_prompt.j2'))
+    os.remove(os.path.join(prompt_dir, 'system_prompt_interactive.j2'))
+    os.remove(os.path.join(prompt_dir, 'system_prompt_long_horizon.j2'))

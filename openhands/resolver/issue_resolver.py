@@ -70,13 +70,17 @@ class IssueResolver:
             comment_id: Optional ID of a specific comment to focus on.
             base_domain: The base domain for the git server.
         """
-
         parts = args.selected_repo.rsplit('/', 1)
         if len(parts) < 2:
             raise ValueError('Invalid repository format. Expected owner/repo')
         owner, repo = parts
 
-        token = args.token or os.getenv('GITHUB_TOKEN') or os.getenv('GITLAB_TOKEN')
+        token = (
+            args.token
+            or os.getenv('GITHUB_TOKEN')
+            or os.getenv('GITLAB_TOKEN')
+            or os.getenv('BITBUCKET_TOKEN')
+        )
         username = args.username if args.username else os.getenv('GIT_USERNAME')
         if not username:
             raise ValueError('Username is required.')
@@ -120,7 +124,11 @@ class IssueResolver:
         base_domain = args.base_domain
         if base_domain is None:
             base_domain = (
-                'github.com' if platform == ProviderType.GITHUB else 'gitlab.com'
+                'github.com'
+                if platform == ProviderType.GITHUB
+                else 'gitlab.com'
+                if platform == ProviderType.GITLAB
+                else 'bitbucket.org'
             )
 
         self.output_dir = args.output_dir
@@ -140,6 +148,7 @@ class IssueResolver:
             args.base_container_image,
             args.runtime_container_image,
             args.is_experimental,
+            args.runtime,
         )
 
         self.owner = owner
@@ -173,16 +182,18 @@ class IssueResolver:
         base_container_image: str | None,
         runtime_container_image: str | None,
         is_experimental: bool,
+        runtime: str | None = None,
     ) -> OpenHandsConfig:
-        config.default_agent = 'CodeActAgent'
-        config.runtime = 'docker'
+        config.default_agent = 'TaskConvAgent'
+        # Use provided runtime or fallback to config value or default to 'docker'
+        config.runtime = runtime or config.runtime or 'docker'
         config.max_budget_per_task = 4
         config.max_iterations = max_iterations
 
         # do not mount workspace
         config.workspace_base = workspace_base
         config.workspace_mount_path = workspace_base
-        config.agents = {'CodeActAgent': AgentConfig(disabled_microagents=['github'])}
+        config.agents = {'TaskConvAgent': AgentConfig(disabled_microagents=['github'])}
 
         cls.update_sandbox_config(
             config,
@@ -528,7 +539,6 @@ class IssueResolver:
         Args:
             reset_logger: Whether to reset the logger for multiprocessing.
         """
-
         issue = self.extract_issue()
 
         if self.comment_id is not None:

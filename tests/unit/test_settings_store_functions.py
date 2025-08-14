@@ -1,3 +1,4 @@
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -28,6 +29,8 @@ async def get_settings_store(request):
 def test_client():
     # Create a test client
     with (
+        patch.dict(os.environ, {'SESSION_API_KEY': ''}, clear=False),
+        patch('openhands.server.dependencies._SESSION_API_KEY', None),
         patch(
             'openhands.server.routes.secrets.check_provider_tokens',
             AsyncMock(return_value=''),
@@ -235,7 +238,6 @@ async def test_store_provider_tokens_new_tokens(test_client, file_secrets_store)
 @pytest.mark.asyncio
 async def test_store_provider_tokens_update_existing(test_client, file_secrets_store):
     """Test store_provider_tokens updates existing tokens."""
-
     # Create existing settings with a GitHub token
     github_token = ProviderToken(token=SecretStr('old-token'))
     provider_tokens = {ProviderType.GITHUB: github_token}
@@ -263,7 +265,6 @@ async def test_store_provider_tokens_update_existing(test_client, file_secrets_s
 @pytest.mark.asyncio
 async def test_store_provider_tokens_keep_existing(test_client, file_secrets_store):
     """Test store_provider_tokens keeps existing tokens when empty string provided."""
-
     # Create existing secrets with a GitHub token
     github_token = ProviderToken(token=SecretStr('existing-token'))
     provider_tokens = {ProviderType.GITHUB: github_token}

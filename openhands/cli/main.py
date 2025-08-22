@@ -563,7 +563,7 @@ async def main_with_loop(loop: asyncio.AbstractEventLoop, args) -> None:
     # If settings don't exist, automatically enter the setup flow
     if not settings:
         # Clear the terminal before showing the banner
-        logger.info(f' ---- No settings found, running setup flow ----')
+        logger.info(' ---- No settings found, running setup flow ----')
         clear()
 
         await run_setup_flow(config, settings_store)

@@ -1,180 +1,151 @@
-# TaskConvAgent - Task-Based Conversational System Specialist
+# TaskConvAgent - Task-Based Conversational Systems + MCP Server Development
 
-TaskConvAgent is a specialized AI agent designed to create comprehensive Task-Based Conversational Systems. It focuses on building conversational AI applications that handle complex, multi-step interactions through structured conversation flows.
+TaskConvAgent is a specialized AI agent that extends CodeActAgent with capabilities for:
+1. **Task-Based Conversational Systems Development** - Original functionality
+2. **MCP (Model Context Protocol) Server Development** - New functionality
 
-## Overview
+## Features
 
-TaskConvAgent transforms complex conversational requirements into organized, maintainable conversational systems by:
+### Conversational Systems Development
+- Analyzing user requirements for conversational systems
+- Decomposing complex conversations into manageable flows
+- Creating natural language flow configurations
+- Setting up project structures for conversational systems
+- Integrating with the llm_automater_graph base repository
 
-- **Analyzing Requirements**: Understanding user specifications for conversational systems
-- **Flow Decomposition**: Breaking complex conversations into manageable, specialized flows
-- **Configuration Generation**: Creating detailed natural language specifications for each flow
-- **Project Setup**: Establishing complete project structures with proper organization
-- **System Integration**: Connecting with the llm_automater_graph base repository
+### MCP Server Development
+- **Creating MCP Servers**: Generate complete MCP server files with FastMCP integration
+- **Adding Tools**: Add new @mcp.tool() decorated functions to existing servers
+- **Server Configuration**: Configure environment variables, host/port settings, and transport options
+- **Server Registration**: Track all MCP servers in a centralized MCP_CONFIG.json file
 
-## Key Features
+## Tools Overview
 
-### 🔄 Flow-Based Architecture
-- **Main Orchestration Flow**: Central hub for routing conversations
-- **Specialized Task Flows**: Focused flows for specific business processes
-- **Natural Conversation Management**: Maintains human-like interactions
+### Conversational Systems Tools
+- `clone_base_repo`: Clone the base repository for conversational systems
+- `analyze_specifications`: Analyze user requirements for conversational systems
+- `decompose_flows`: Break down complex conversations into specialized flows
+- `generate_flow_config`: Create detailed flow configurations
+- `setup_project_structure`: Set up organized project structure
+- `finalize_system`: Generate comprehensive documentation and deployment instructions
 
-### 🛠️ Specialized Tools
-
-1. **`clone_base_repo`**: Clones the foundational llm_automater_graph repository
-2. **`analyze_specifications`**: Processes user requirements and extracts key information
-3. **`decompose_flows`**: Breaks down requirements into structured conversation flows
-4. **`generate_flow_config`**: Creates detailed natural language flow configurations
-5. **`setup_project_structure`**: Establishes organized project directories and files
-6. **`finalize_system`**: Completes setup with deployment and testing guidelines
-
-### 🎯 Domain Support
-
-TaskConvAgent supports various business domains including:
-- Real Estate (property search, information, applications)
-- E-commerce (product browsing, orders, customer service)
-- Customer Service (support, billing, technical assistance)
-- Healthcare (appointments, information, consultations)
-- Finance (banking, loans, investment guidance)
-- Education (course information, enrollment, support)
-
-## How It Works
-
-### 1. Requirement Analysis
-```
-User Input: "I want to build a real estate chatbot that helps users find properties, 
-get information about the company, and apply for financing."
-```
-
-### 2. Flow Decomposition
-The agent identifies and creates:
-- **Main Orchestration Flow**: Routes users to appropriate services
-- **Property Search Flow**: Handles property filtering and viewing
-- **Information Flow**: Provides company and general information
-- **Application Flow**: Manages financing applications
-
-### 3. Configuration Generation
-Creates detailed flow config files like:
-```markdown
-# Property Search Flow Configuration
-
-## Flow Overview
-**Purpose**: Handle property search, filtering, and viewing requests
-
-## User Intents Handled
-- Search for properties
-- Filter by criteria (location, price, type)
-- View property details
-- Schedule viewings
-
-## Conversation Patterns
-- Initial search parameters collection
-- Iterative filtering and refinement
-- Property presentation and details
-- Action completion (viewing, favorites, etc.)
-```
-
-### 4. Project Structure
-Sets up organized directories:
-```
-real_estate_chatbot/
-├── flows_config/
-│   ├── main_orchestration_config.md
-│   ├── property_search_config.md
-│   ├── information_config.md
-│   └── application_config.md
-├── src/
-├── config/
-├── docs/
-└── tests/
-```
+### MCP Server Tools
+- `create_mcp_server`: Create a new MCP server with basic structure
+- `add_mcp_tool`: Add a new tool to an existing MCP server
+- `configure_mcp_server`: Configure server settings and environment variables
+- `register_mcp_server`: Register server in MCP_CONFIG.json for tracking
 
 ## Usage Examples
 
-### Real Estate Chatbot
+### Creating an MCP Server
+
 ```python
-# User provides specifications
-"Create a real estate chatbot with property search, company info, and loan applications"
+# Create a new MCP server
+create_mcp_server(
+    server_name="weather_mcp",
+    server_description="Weather data and forecasting tools",
+    file_path="mcp_servers/weather.py",
+    base_url_env_var="WEATHER_API_BASE_URL",
+    default_base_url="http://localhost:8080",
+    port=8001
+)
 
-# TaskConvAgent creates:
-# - Main orchestration flow
-# - Property search flow  
-# - Information flow
-# - Application flow
-# - Complete project structure
-# - Documentation and setup guides
+# Add a tool to the server
+add_mcp_tool(
+    server_file_path="mcp_servers/weather.py",
+    tool_name="get_weather",
+    tool_description="Get current weather for a location",
+    endpoint="/api/weather",
+    parameters=[
+        {
+            "name": "location",
+            "type": "str",
+            "description": "Location to get weather for",
+            "required": True
+        },
+        {
+            "name": "units",
+            "type": "str",
+            "description": "Temperature units (celsius/fahrenheit)",
+            "required": False,
+            "default": "celsius"
+        }
+    ]
+)
+
+# Register the server
+register_mcp_server(
+    server_name="weather_mcp",
+    server_file_path="mcp_servers/weather.py",
+    description="Weather data and forecasting tools",
+    port=8001,
+    tools=[
+        {
+            "name": "get_weather",
+            "description": "Get current weather for a location",
+            "endpoint": "/api/weather"
+        }
+    ]
+)
 ```
 
-### Customer Service System
-```python
-# User provides specifications  
-"Build a customer service system that handles support tickets, billing questions, and technical help"
+## MCP_CONFIG.json
 
-# TaskConvAgent creates:
-# - Main routing flow
-# - Support ticket flow
-# - Billing assistance flow
-# - Technical support flow
-# - Escalation handling
+The `MCP_CONFIG.json` file tracks all created MCP servers and their configuration:
+
+```json
+{
+  "mcp_servers": [
+    {
+      "name": "weather_mcp",
+      "file_path": "mcp_servers/weather.py",
+      "description": "Weather data and forecasting tools",
+      "host": "127.0.0.1",
+      "port": 8001,
+      "http_path": "/mcp",
+      "transport": "stdio",
+      "tools": [...],
+      "environment_variables": {...},
+      "created_at": "2024-01-15T10:30:00.000Z",
+      "url": "http://127.0.0.1:8001/mcp"
+    }
+  ],
+  "metadata": {
+    "created_at": "2024-01-15T10:30:00.000Z",
+    "last_updated": "2024-01-15T10:30:00.000Z",
+    "version": "1.0.0"
+  }
+}
 ```
 
-## Integration
+## Generated MCP Server Structure
 
-TaskConvAgent integrates with:
+Each generated MCP server includes:
+- FastMCP integration
+- Configurable transport (stdio/HTTP)
+- Environment variable handling
+- Request/response logging
+- Error handling
+- JSON response formatting
+- Tool metadata injection
 
-- **llm_automater_graph**: Base repository for conversational system infrastructure
-- **OpenHands Tools**: Command execution, file operations, and code analysis
-- **LLM Providers**: Support for various language models through LiteLLM
+## Architecture
 
-## Configuration
+TaskConvAgent extends CodeActAgent and includes all its capabilities:
+- Bash command execution
+- Python/Jupyter code execution
+- File reading and editing
+- Browser interaction
+- Thinking and reasoning
+- Task completion signaling
 
-TaskConvAgent automatically configures:
-- Command execution (for git operations and file management)
-- Jupyter/IPython (for analysis and processing) 
-- Specialized conversational system tools
+Plus specialized tools for both conversational systems and MCP server development.
 
-## Output
+## Getting Started
 
-TaskConvAgent produces:
+1. Initialize TaskConvAgent with your LLM and configuration
+2. Use conversational system tools for building chat systems
+3. Use MCP server tools for creating API integration servers
+4. All tools can be used together in complex workflows
 
-1. **Flow Configuration Files**: Detailed specifications for each conversation flow
-2. **Project Structure**: Organized directories and base files
-3. **Documentation**: Setup, deployment, and testing guides
-4. **Integration Notes**: Specific requirements and dependencies
-
-## Best Practices
-
-- **Single Responsibility**: Each flow handles one specific type of conversation
-- **Natural Interaction**: Conversations feel human-like and intuitive
-- **Modular Design**: Flows are independent and maintainable
-- **Comprehensive Documentation**: Clear specifications and setup instructions
-
-## Example Flow Configuration
-
-```markdown
-# Main Orchestration Flow Configuration
-
-## Flow Overview
-**Purpose**: Handle initial user contact and route to appropriate specialized flows
-
-## User Intents Handled
-- Welcome and greeting
-- Intent classification
-- Flow routing
-- General fallback
-
-## Conversation Patterns
-- Initial greeting and context gathering
-- Intent recognition through questions or keywords
-- Routing decision making
-- Handoff to specialized flows
-
-## Routing Logic
-Based on user intent, route to:
-- Property-related queries → Property Search Flow
-- Company information → Information Flow
-- Financing questions → Application Flow
-- General support → Default assistance
-```
-
-TaskConvAgent enables the creation of sophisticated conversational systems that provide natural, task-oriented user experiences while maintaining clean, maintainable architectures. 
+The agent automatically handles tool execution and provides comprehensive feedback throughout the development process.

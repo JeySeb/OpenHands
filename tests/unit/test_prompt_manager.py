@@ -26,28 +26,29 @@ def prompt_dir(tmp_path):
     # Return the temporary directory path
     return tmp_path
 
+
 def test_prompt_manager_template_rendering(prompt_dir):
     """Test PromptManager's template rendering functionality.
-    
+
     This test verifies that the PromptManager correctly renders Jinja2 templates
     for system prompts, user prompts, and additional context information. It tests
     both basic template rendering and template rendering with repository information.
     """
     # Create temporary template files with test content
-    print("\n=== Creating test template files ===")
-    
+    print('\n=== Creating test template files ===')
+
     # System prompt template - a simple static message
     system_template_path = os.path.join(prompt_dir, 'system_prompt.j2')
     with open(system_template_path, 'w') as f:
         f.write("""System prompt: bar""")
-    print(f"Created system prompt template at: {system_template_path}")
-    
+    print(f'Created system prompt template at: {system_template_path}')
+
     # User prompt template - another simple static message
     user_template_path = os.path.join(prompt_dir, 'user_prompt.j2')
     with open(user_template_path, 'w') as f:
         f.write('User prompt: foo')
-    print(f"Created user prompt template at: {user_template_path}")
-    
+    print(f'Created user prompt template at: {user_template_path}')
+
     # Additional info template - includes conditional repository information
     additional_info_path = os.path.join(prompt_dir, 'additional_info.j2')
     with open(additional_info_path, 'w') as f:
@@ -58,9 +59,9 @@ At the user's request, repository {{ repository_info.repo_name }} has been clone
 </REPOSITORY_INFO>
 {% endif %}
 """)
-    print(f"Created additional info template at: {additional_info_path}")
+    print(f'Created additional info template at: {additional_info_path}')
 
-    print("\n=== Testing without repository info ===")
+    print('\n=== Testing without repository info ===')
     # First test case: Initialize PromptManager without any GitHub repository info
     manager = PromptManager(prompt_dir)
     assert manager.get_system_message() == 'System prompt: bar'
@@ -74,14 +75,14 @@ At the user's request, repository {{ repository_info.repo_name }} has been clone
 
     # verify its parts are rendered
     system_msg = manager.get_system_message()
-    print(f"System message (no repo):\n{system_msg}")
+    print(f'System message (no repo):\n{system_msg}')
     assert system_msg == 'System prompt: bar'
-    
+
     user_msg = manager.get_example_user_message()
-    print(f"User message (no repo):\n{user_msg}")
+    print(f'User message (no repo):\n{user_msg}')
     assert user_msg == 'User prompt: foo'
 
-    print("\n=== Testing with repository info ===")
+    print('\n=== Testing with repository info ===')
     # Second test case: Test with GitHub repository information
     manager = PromptManager(prompt_dir=prompt_dir)
     repo_info = RepositoryInfo(
@@ -90,19 +91,19 @@ At the user's request, repository {{ repository_info.repo_name }} has been clone
 
     # Verify system message with repo context
     system_msg = manager.get_system_message()
-    print(f"System message (with repo):\n{system_msg}")
+    print(f'System message (with repo):\n{system_msg}')
     assert 'System prompt: bar' in system_msg
 
     # Test building additional workspace context
-    print("\n=== Testing additional workspace context ===")
+    print('\n=== Testing additional workspace context ===')
     additional_info = manager.build_workspace_context(
         repository_info=repo_info,
         runtime_info=None,
         repo_instructions='',
         conversation_instructions=None,
     )
-    print(f"Generated additional info:\n{additional_info}")
-    
+    print(f'Generated additional info:\n{additional_info}')
+
     # Verify repository information rendering
     assert '<REPOSITORY_INFO>' in additional_info
     assert (
@@ -110,19 +111,19 @@ At the user's request, repository {{ repository_info.repo_name }} has been clone
         in additional_info
     )
     assert '</REPOSITORY_INFO>' in additional_info
-    
+
     user_msg = manager.get_example_user_message()
-    print(f"User message (with repo):\n{user_msg}")
+    print(f'User message (with repo):\n{user_msg}')
     assert user_msg == 'User prompt: foo'
 
-    print("\n=== Cleaning up test files ===")
+    print('\n=== Cleaning up test files ===')
     # Clean up temporary files
     os.remove(system_template_path)
-    print(f"Removed: {system_template_path}")
+    print(f'Removed: {system_template_path}')
     os.remove(user_template_path)
-    print(f"Removed: {user_template_path}")
+    print(f'Removed: {user_template_path}')
     os.remove(additional_info_path)
-    print(f"Removed: {additional_info_path}")
+    print(f'Removed: {additional_info_path}')
 
 
 def test_prompt_manager_file_not_found(prompt_dir):

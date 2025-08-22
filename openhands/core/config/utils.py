@@ -316,6 +316,19 @@ def load_from_toml(cfg: OpenHandsConfig, toml_file: str = 'config.toml') -> None
                 f'Cannot parse [extended] config from toml, values have not been applied.\nError: {e}'
             )
 
+    # Process task_conv_agent section if present
+    if 'task_conv_agent' in toml_config:
+        try:
+            # Export task_conv_agent variables to environment
+            for key, value in toml_config['task_conv_agent'].items():
+                env_var_name = f'TASK_CONV_AGENT__{key.upper()}'
+                os.environ[env_var_name] = str(value)
+                logger.openhands_logger.debug(f'Exported {env_var_name}={value} to environment')
+        except Exception as e:
+            logger.openhands_logger.warning(
+                f'Cannot export task_conv_agent variables to environment.\nError: {e}'
+            )
+
     # Check for unknown sections
     known_sections = {
         'core',
@@ -327,6 +340,7 @@ def load_from_toml(cfg: OpenHandsConfig, toml_file: str = 'config.toml') -> None
         'condenser',
         'mcp',
         'kubernetes',
+        'task_conv_agent',
     }
     for key in toml_config:
         if key.lower() not in known_sections:

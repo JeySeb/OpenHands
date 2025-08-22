@@ -1,0 +1,55 @@
+{
+  "mcp_servers": [
+    {
+      "name": "stock_explorer_mcp",
+      "file_path": "mcp_servers/stock_explorer.py",
+      "description": "MCP server for stock market data and analysis tools",
+      "host": "127.0.0.1",
+      "port": 8000,
+      "http_path": "/mcp",
+      "transport": "stdio",
+      "tools": [
+        {
+          "name": "basic_get_stocks",
+          "description": "Get detailed information about stocks by ticker or filters",
+          "endpoint": "/api/v1/stocks"
+        },
+        {
+          "name": "enhanced_get_stocks",
+          "description": "Get enhanced stock events with advanced filters and pagination",
+          "endpoint": "/api/v1/stocks/enhanced"
+        },
+        {
+          "name": "get_stock_detail",
+          "description": "Get all events related to a specific stock ticker",
+          "endpoint": "/api/v1/stocks/enhanced"
+        },
+        {
+          "name": "get_companies",
+          "description": "Get list of unique companies with optional prefix filter",
+          "endpoint": "/api/v1/stocks/companies"
+        },
+        {
+          "name": "get_brokers_scores",
+          "description": "Get brokers scores ordered by rating",
+          "endpoint": "/api/v1/brokers/scores"
+        }
+      ],
+      "environment_variables": {
+        "STOCKS_API_BASE_URL": "http://localhost:8080",
+        "MCP_HTTP_HOST": "127.0.0.1",
+        "MCP_HTTP_PORT": "8000",
+        "MCP_HTTP_PATH": "/mcp",
+        "MCP_TRANSPORT": "stdio"
+      },
+      "created_at": "2024-01-15T10:30:00.000Z",
+      "url": null
+    }
+  ],
+  "metadata": {
+    "created_at": "2024-01-15T10:30:00.000Z",
+    "last_updated": "2024-01-15T10:30:00.000Z",
+    "version": "1.0.0",
+    "description": "Configuration file for tracking and managing MCP servers"
+  }
+}

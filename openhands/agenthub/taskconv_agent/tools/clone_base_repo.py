@@ -11,10 +11,10 @@ CloneBaseRepoTool = ChatCompletionToolParam(
         name='clone_base_repo',
         description=(
             'Clones the base repository for Task-Based Conversational Systems. '
-            'This repository (https://github.com/Toperty/llm_automater_graph) contains '
+            'This repository (https://github.com/JeySeb/LangGraph-Interpreter#) contains '
             'the foundational structure and dependencies required for all conversational systems. '
             'This should be the first step when setting up a new conversational system project.'
-            'The repository to be cloned is always https://github.com/Toperty/llm_automater_graph. '
+            'The repository to be cloned is always https://github.com/JeySeb/LangGraph-Interpreter. '
             'No additional parameters are added to the repository name.'
         ),
         parameters={

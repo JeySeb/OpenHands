@@ -13,7 +13,7 @@ from openhands.core.config import AgentConfig
 from openhands.core.logger import openhands_logger as logger
 from openhands.llm.llm import LLM
 
-if TYPE_CHECKING:
+if TYPE_CHECKING: 
     from litellm import ChatCompletionToolParam
     from openhands.events.action import Action
     from openhands.llm.llm import ModelResponse
@@ -157,7 +157,8 @@ class TaskConvAgent(CodeActAgent):
                 'decompose_flows',
                 'generate_flow_config',
                 'setup_project_structure',
-                'finalize_system'
+                'finalize_system',
+                'build_mcp_server'
             ],
             'supported_domains': [
                 'Real Estate',

@@ -254,3 +254,8 @@ containers/runtime/Dockerfile
 containers/runtime/project.tar.gz
 containers/runtime/code
 **/node_modules/
+openhands/agenthub/taskconv_agent/tools/add_mcp_tool.py
+openhands/agenthub/taskconv_agent/tools/configure_mcp_server.py
+openhands/agenthub/taskconv_agent/tools/create_mcp_server.py
+openhands/agenthub/taskconv_agent/tools/register_mcp_server.py
+Miniforge3-Linux-x86_64.sh

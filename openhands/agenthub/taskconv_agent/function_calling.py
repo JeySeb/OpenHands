@@ -25,10 +25,7 @@ from openhands.agenthub.taskconv_agent.tools import (
     GenerateFlowConfigTool,
     SetupProjectStructureTool,
     FinalizeSystemTool,
-    CreateMcpServerTool,
-    AddMcpToolTool,
-    ConfigureMcpServerTool,
-    RegisterMcpServerTool,
+    BuildMcpServerTool,
     VerifyDslIntegrityTool,
 )
 from openhands.core.exceptions import (
@@ -40,11 +37,13 @@ from openhands.events.action import (
     Action,
     AgentFinishAction,
     CmdRunAction,
+    FileEditAction,
     FileWriteAction,
     IPythonRunCellAction,
     MessageAction,
 )
 from openhands.events.tool import ToolCallMetadata
+from openhands.events.event import FileEditSource
 
 
 def response_to_actions(
@@ -146,17 +145,8 @@ def response_to_actions(
                 # ================================================
                 # MCP Server Management Tools
                 # ================================================
-                elif tool_call.function.name == 'create_mcp_server':
-                    action = _handle_create_mcp_server(arguments)
-                    
-                elif tool_call.function.name == 'add_mcp_tool':
-                    action = _handle_add_mcp_tool(arguments)
-                    
-                elif tool_call.function.name == 'configure_mcp_server':
-                    action = _handle_configure_mcp_server(arguments)
-                    
-                elif tool_call.function.name == 'register_mcp_server':
-                    action = _handle_register_mcp_server(arguments)
+                elif tool_call.function.name == 'build_mcp_server':
+                    action = _handle_build_mcp_server(arguments)
                     
                 else:
                     raise FunctionCallNotExistsError(
@@ -235,10 +225,7 @@ def get_taskconv_tools() -> list[ChatCompletionToolParam]:
         GenerateFlowConfigTool,
         SetupProjectStructureTool,
         FinalizeSystemTool,
-        CreateMcpServerTool,
-        AddMcpToolTool,
-        ConfigureMcpServerTool,
-        RegisterMcpServerTool,
+        BuildMcpServerTool,
         VerifyDslIntegrityTool,
     ]
 
@@ -433,9 +420,14 @@ This flow should be implemented as a specialized conversational agent that:
 - Verify routing logic works correctly
 """
     
-    # Write the configuration file
+    # Create the configuration file using FileEditAction
     file_path = f'flows_config/{flow_name}_config.md'
-    return FileWriteAction(path=file_path, content=config_content)
+    return FileEditAction(
+        path=file_path,
+        command='create',
+        file_text=config_content,
+        impl_source=FileEditSource.OH_ACI
+    )
 
 
 def _handle_setup_project_structure(arguments: dict) -> Action:
@@ -465,75 +457,38 @@ def _handle_setup_project_structure(arguments: dict) -> Action:
     return CmdRunAction(command=full_command)
 
 
-def _handle_finalize_system(arguments: dict) -> Action:
-    """Handle the finalize_system tool call."""
-    project_path = arguments['project_path']
-    system_summary = arguments['system_summary']
-    flows_created = arguments['flows_created']
-    deployment_type = arguments.get('deployment_type', 'local')
-    testing_requirements = arguments.get('testing_requirements', [])
-    integration_notes = arguments.get('integration_notes', '')
-    
-    # Create comprehensive README content
-    readme_content = f"""# Task-Based Conversational System
-
-## System Overview
-{system_summary}
-
-## Flows Created
-{chr(10).join(f'- **{flow}**' for flow in flows_created)}
-
-## Deployment
-**Type**: {deployment_type}
-
-### Setup Instructions
-1. Navigate to the project directory: `cd {project_path}`
-2. Install dependencies: `pip install -r requirements.txt`
-3. Configure environment variables (see config/ directory)
-4. Run the system: `python main.py`
-
-## Testing
-{chr(10).join(f'- {req}' for req in testing_requirements) if testing_requirements else '- Standard conversation flow testing recommended'}
-
-## Integration Notes
-{integration_notes if integration_notes else 'No special integration requirements'}
-
-## Flow Configuration Files
-Each flow has its detailed configuration in the `flows_config/` directory:
-{chr(10).join(f'- `flows_config/{flow}_config.md`' for flow in flows_created)}
-
-## Next Steps
-1. Review each flow configuration file
-2. Implement the conversation logic based on the specifications
-3. Test individual flows
-4. Test the complete system integration
-5. Deploy according to the chosen deployment method
-
-## Support
-Refer to the documentation in the `docs/` directory for detailed implementation guidelines.
-"""
-    
-    return FileWriteAction(path=f'{project_path}/README.md', content=readme_content)
-
-
-def _handle_create_mcp_server(arguments: dict) -> Action:
-    """Handle the create_mcp_server tool call."""
+def _handle_build_mcp_server(arguments: dict) -> Action:
+    """Handle the build_mcp_server tool call."""
+    interpreter_path = arguments['interpreter_path']
+    server_name = arguments['server_name']
+    agent_name = arguments['agent_name']
     server_name = arguments['server_name']
     server_description = arguments['server_description']
-    file_path = arguments['file_path']
+    functional_tools_code = arguments['functional_tools_code']
+    environment_variables = arguments.get('environment_variables', {})
     base_url_env_var = arguments.get('base_url_env_var', 'API_BASE_URL')
     default_base_url = arguments.get('default_base_url', 'http://localhost:8080')
-    host = arguments.get('host', '127.0.0.1')
-    port = arguments.get('port', 8000)
-    http_path = arguments.get('http_path', '/mcp')
+    default_port = arguments.get('default_port', 8010)
+    uses_external_api = arguments.get('uses_external_api', False)
+    api_timeout = arguments.get('api_timeout', 30)
     
-    # Generate MCP server content based on the provided example
+    agent_name = f"@{agent_name}" if not agent_name.startswith('@') else agent_name
+    file_path = f"{interpreter_path}/agents/{agent_name}/mcp_servers/{server_name}.py"
+    
+    # Build the complete MCP server content
     server_content = f'''import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-import requests
 import json
+import logging'''
+
+    # Add requests import only if using external APIs
+    if uses_external_api:
+        server_content += '''
+import requests'''
+
+    server_content += f'''
 
 # Ensure project root is on sys.path so we can import project modules
 CURRENT_FILE = Path(__file__).resolve()
@@ -542,24 +497,27 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from mcp.server.fastmcp import FastMCP
-from config.logger import get_logger
-
 
 """
-MCP server for {server_description}.
-All tools return plain dicts to avoid strict output schema coupling.
+{server_description}
+
+All tools return json.dumps(...) strings and include mcp_server, mcp_tool, and tool_params metadata.
 """
 
 SERVER_NAME = "{server_name}"
+logger = logging.getLogger(SERVER_NAME)
+'''
 
-logger = get_logger(SERVER_NAME)
-
+    # Add API helper functions if using external APIs
+    if uses_external_api:
+        server_content += f'''
 
 def _default_base_url() -> str:
     return os.environ.get("{base_url_env_var}", "{default_base_url}")
 
 
 def _resolve_endpoint(endpoint: str) -> str:
+    """Resolve endpoint to full URL, allowing absolute URL overrides."""
     if endpoint.startswith("http://") or endpoint.startswith("https://"):
         return endpoint
     base = _default_base_url().rstrip("/")
@@ -568,38 +526,106 @@ def _resolve_endpoint(endpoint: str) -> str:
     return f"{{base}}{{endpoint}}"
 
 
-def _get_json(endpoint: str, params: Optional[Dict[str, Any]] = None, mcp_tool: Optional[str] = None) -> Any:
+def _make_request(
+    method: str,
+    endpoint: str,
+    params: Optional[Dict[str, Any]] = None,
+    json_data: Optional[Dict[str, Any]] = None,
+    mcp_tool: Optional[str] = None
+) -> Any:
+    """Make an HTTP request and return JSON with metadata."""
     resolved = _resolve_endpoint(endpoint)
-    logger.debug(f"HTTP GET: {{resolved}} params={{params}}")
-    response = requests.get(resolved, params=params)
-    response.raise_for_status()
-    data = response.json()
-    data["mcp_server"] = SERVER_NAME
-    data["mcp_tool"] = mcp_tool
-    data["tool_params"] = params
-    return data
+    # Use 'params' for GET/DELETE, 'json' for POST/PUT
+    request_args = {{"timeout": {api_timeout}}}
+    payload_for_logging = {{}}
+
+    if method.upper() in ["GET", "DELETE"]:
+        clean_payload = {{k: v for k, v in (params or {{}}).items() if v is not None}}
+        request_args["params"] = clean_payload
+        payload_for_logging = {{"params": clean_payload}}
+    else: # POST, PUT, etc.
+        clean_payload = {{k: v for k, v in (json_data or {{}}).items() if v is not None}}
+        request_args["json"] = clean_payload
+        payload_for_logging = {{"json": clean_payload}}
+    
+    logger.debug(f"HTTP {{method.upper()}}: {{resolved}} {{payload_for_logging}}")
+    
+    response = None
+    try:
+        response = requests.request(method, resolved, **request_args)
+        response.raise_for_status()
+
+        # Handle empty responses (e.g., 204 No Content for DELETE)
+        if response.status_code == 204 or not response.content:
+            result = {{"success": True, "status_code": response.status_code}}
+        else:
+            result = response.json()
+        
+        # Add metadata
+        if isinstance(result, dict):
+            result["mcp_server"] = SERVER_NAME
+            result["mcp_tool"] = mcp_tool
+            result["tool_params"] = clean_payload # Consistent key name
+            result["endpoint"] = resolved
+        
+        return result
+
+    except requests.RequestException as exc:
+        # Return structured error payload for HTTP/Network errors
+        status_code = getattr(response, "status_code", None)
+        return {{
+            "error": str(exc),
+            "status_code": status_code,
+            "mcp_server": SERVER_NAME,
+            "mcp_tool": mcp_tool,
+            "tool_params": clean_payload,
+            "endpoint": resolved,
+        }}
+    except json.JSONDecodeError as exc:
+        # Handle cases where the response is not valid JSON
+        return {{
+            "error": f"Failed to decode JSON response: {{exc}}",
+            "status_code": getattr(response, "status_code", 500),
+            "response_text": response.text if response else "No response",
+            "mcp_server": SERVER_NAME,
+            "mcp_tool": mcp_tool,
+            "tool_params": clean_payload,
+            "endpoint": resolved,
+        }}
+
+
+def _get_json(endpoint: str, params: Optional[Dict[str, Any]] = None, mcp_tool: Optional[str] = None) -> Any:
+    """Make GET request and return JSON with metadata."""
+    return _make_request('GET', endpoint, params=params, mcp_tool=mcp_tool)
 
 
 def _post_json(endpoint: str, data: Optional[Dict[str, Any]] = None, mcp_tool: Optional[str] = None) -> Any:
-    resolved = _resolve_endpoint(endpoint)
-    logger.debug(f"HTTP POST: {{resolved}} data={{data}}")
-    response = requests.post(resolved, json=data)
-    response.raise_for_status()
-    result = response.json()
-    result["mcp_server"] = SERVER_NAME
-    result["mcp_tool"] = mcp_tool
-    result["tool_data"] = data
-    return result
+    """Make POST request and return JSON with metadata."""
+    return _make_request('POST', endpoint, json_data=data, mcp_tool=mcp_tool)
 
+
+def _put_json(endpoint: str, data: Optional[Dict[str, Any]] = None, mcp_tool: Optional[str] = None) -> Any:
+    """Make PUT request and return JSON with metadata."""
+    return _make_request('PUT', endpoint, json_data=data, mcp_tool=mcp_tool)
+
+
+def _delete_json(endpoint: str, params: Optional[Dict[str, Any]] = None, mcp_tool: Optional[str] = None) -> Any:
+    """Make DELETE request and return JSON with metadata."""
+    return _make_request('DELETE', endpoint, params=params, mcp_tool=mcp_tool)
+'''
+
+    # Add MCP server setup boilerplate
+    server_content += f'''
 
 def _create_mcp() -> FastMCP:
-    host = os.environ.get("MCP_HTTP_HOST", "{host}")
-    port_str = os.environ.get("MCP_HTTP_PORT", "{port}")
-    path = os.environ.get("MCP_HTTP_PATH", "{http_path}")
+    """Create and configure FastMCP instance."""
+    host = os.environ.get("MCP_HTTP_HOST", "127.0.0.1")
+    port_str = os.environ.get("MCP_HTTP_PORT", "{default_port}")
+    path = os.environ.get("MCP_HTTP_PATH", "/mcp")
     try:
         port = int(port_str)
     except ValueError:
-        port = {port}
+        port = {default_port}
     return FastMCP(
         SERVER_NAME,
         host=host,
@@ -610,21 +636,19 @@ def _create_mcp() -> FastMCP:
 
 mcp = _create_mcp()
 
+# ============================================================
+# FUNCTIONAL TOOLS - START
+# ============================================================
 
-# Add your tools here using @mcp.tool() decorator
-# Example:
-# @mcp.tool()
-# def example_tool(param: str) -> str:
-#     \"\"\"Example tool description.\"\"\"
-#     try:
-#         data = _get_json("/api/example", {{"param": param}}, mcp_tool="example_tool")
-#         return json.dumps(data, ensure_ascii=False)
-#     except requests.RequestException as error:
-#         logger.error(f"Failed to call example API: {{str(error)}}")
-#         return json.dumps({{"error": str(error)}}, ensure_ascii=False)
+{functional_tools_code}
+
+# ============================================================
+# FUNCTIONAL TOOLS - END
+# ============================================================
 
 
 def _run_mcp() -> None:
+    """Run the MCP server with appropriate transport."""
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     if transport == "http":
         transport = "streamable-http"
@@ -632,265 +656,24 @@ def _run_mcp() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, help="Port to run MCP server on")
+    args = parser.parse_args()
+    
+    if args.port:
+        os.environ["MCP_HTTP_PORT"] = str(args.port)
+    
     _run_mcp()
 '''
-    
-    return FileWriteAction(path=file_path, content=server_content)
 
-
-def _handle_add_mcp_tool(arguments: dict) -> Action:
-    """Handle the add_mcp_tool tool call."""
-    server_file_path = arguments['server_file_path']
-    tool_name = arguments['tool_name']
-    tool_description = arguments['tool_description']
-    endpoint = arguments['endpoint']
-    parameters = arguments['parameters']
-    http_method = arguments.get('http_method', 'GET')
-    
-    # Generate function parameters and typing
-    param_list = []
-    param_docs = []
-    param_dict_items = []
-    
-    for param in parameters:
-        param_name = param['name']
-        param_type = param['type']
-        param_desc = param['description']
-        is_required = param['required']
-        default_val = param.get('default')
-        
-        # Convert type names to Python types
-        type_mapping = {
-            'str': 'str', 'string': 'str',
-            'int': 'int', 'integer': 'int',
-            'float': 'float',
-            'bool': 'bool', 'boolean': 'bool',
-            'list': 'List[str]', 'array': 'List[str]',
-            'dict': 'Dict[str, Any]', 'object': 'Dict[str, Any]'
-        }
-        python_type = type_mapping.get(param_type.lower(), 'Any')
-        
-        if not is_required:
-            python_type = f'Optional[{python_type}]'
-            if default_val is not None:
-                if isinstance(default_val, str):
-                    param_list.append(f'{param_name}: {python_type} = "{default_val}"')
-                else:
-                    param_list.append(f'{param_name}: {python_type} = {default_val}')
-            else:
-                param_list.append(f'{param_name}: {python_type} = None')
-        else:
-            param_list.append(f'{param_name}: {python_type}')
-        
-        param_docs.append(f'    {param_name}: {param_desc}')
-        param_dict_items.append(f'        "{param_name}": {param_name}')
-    
-    # Generate the tool function
-    tool_function = f'''
-
-@mcp.tool()
-def {tool_name}(
-    {",\\n    ".join(param_list)},
-    endpoint: Optional[str] = None,
-) -> str:
-    """
-    {tool_description}
-    
-    Args:
-{chr(10).join(param_docs)}
-        endpoint: API endpoint override (optional)
-    
-    Returns:
-        JSON string with the API response
-    """
-    try:
-        effective_endpoint = endpoint or "{endpoint}"
-        params: Dict[str, Any] = {{
-{chr(10).join(param_dict_items)}
-        }}
-        # Remove None values to avoid sending empty params
-        params = {{k: v for k, v in params.items() if v is not None}}
-        
-        {'data = _get_json(effective_endpoint, params=params, mcp_tool="' + tool_name + '")' if http_method.upper() == 'GET' else 'data = _post_json(effective_endpoint, data=params, mcp_tool="' + tool_name + '")'}
-        return json.dumps(data, ensure_ascii=False)
-    except requests.RequestException as error:
-        logger.error(f"Failed to call {tool_name}: {{str(error)}}")
-        return json.dumps({{"error": str(error)}}, ensure_ascii=False)
-'''
-    
-    # Create Python script to append the tool to the server file
-    append_code = f'''
-# Adding new tool to MCP server
-server_file_path = "{server_file_path}"
-tool_function = """{tool_function}"""
-
-# Read the current file content
-with open(server_file_path, 'r') as f:
-    content = f.read()
-
-# Find the position to insert the new tool (before _run_mcp function)
-insert_position = content.find('def _run_mcp() -> None:')
-if insert_position == -1:
-    # If _run_mcp is not found, append at the end
-    new_content = content + tool_function
-else:
-    # Insert before _run_mcp function
-    new_content = content[:insert_position] + tool_function + "\\n\\n" + content[insert_position:]
-
-# Write the updated content back
-with open(server_file_path, 'w') as f:
-    f.write(new_content)
-
-print(f"Successfully added tool '{{tool_function.split('def ')[1].split('(')[0]}}' to {{server_file_path}}")
-'''
-    
-    return IPythonRunCellAction(code=append_code)
-
-
-def _handle_configure_mcp_server(arguments: dict) -> Action:
-    """Handle the configure_mcp_server tool call."""
-    server_file_path = arguments['server_file_path']
-    env_vars = arguments.get('environment_variables', {})
-    default_config = arguments.get('default_config', {})
-    logging_config = arguments.get('logging_config', {})
-    
-    # Create Python script to update server configuration
-    config_code = f'''
-# Configuring MCP server
-import re
-
-server_file_path = "{server_file_path}"
-env_vars = {env_vars}
-default_config = {default_config}
-logging_config = {logging_config}
-
-# Read the current file content
-with open(server_file_path, 'r') as f:
-    content = f.read()
-
-# Update environment variables if provided
-if env_vars:
-    for env_key, env_value in env_vars.items():
-        if env_key == 'base_url_var' and env_value:
-            # Update base URL environment variable
-            pattern = r'os\\.environ\\.get\\("[^"]+", "[^"]+"\\)'
-            replacement = f'os.environ.get("{{env_value}}", "http://localhost:8080")'
-            content = re.sub(pattern, replacement, content, count=1)
-
-# Update default configuration if provided
-if default_config:
-    if 'host' in default_config:
-        content = re.sub(
-            r'host = os\\.environ\\.get\\("MCP_HTTP_HOST", "[^"]+"\\)',
-            f'host = os.environ.get("MCP_HTTP_HOST", "{default_config["host"]}")',
-            content
-        )
-    if 'port' in default_config:
-        content = re.sub(
-            r'port_str = os\\.environ\\.get\\("MCP_HTTP_PORT", "[^"]+"\\)',
-            f'port_str = os.environ.get("MCP_HTTP_PORT", "{default_config["port"]}")',
-            content
-        )
-        content = re.sub(
-            r'port = \\d+',
-            f'port = {default_config["port"]}',
-            content
-        )
-    if 'path' in default_config:
-        content = re.sub(
-            r'path = os\\.environ\\.get\\("MCP_HTTP_PATH", "[^"]+"\\)',
-            f'path = os.environ.get("MCP_HTTP_PATH", "{default_config["path"]}")',
-            content
-        )
-
-# Write the updated content back
-with open(server_file_path, 'w') as f:
-    f.write(content)
-
-print(f"Successfully configured MCP server at {{server_file_path}}")
-'''
-    
-    return IPythonRunCellAction(code=config_code)
-
-
-def _handle_register_mcp_server(arguments: dict) -> Action:
-    """Handle the register_mcp_server tool call."""
-    server_name = arguments['server_name']
-    server_file_path = arguments['server_file_path']
-    description = arguments['description']
-    host = arguments.get('host', '127.0.0.1')
-    port = arguments['port']
-    http_path = arguments.get('http_path', '/mcp')
-    transport = arguments.get('transport', 'stdio')
-    tools = arguments.get('tools', [])
-    environment_variables = arguments.get('environment_variables', {})
-    config_file_path = arguments.get('config_file_path', 'MCP_CONFIG.json')
-    
-    # Create Python script to update MCP_CONFIG.json
-    register_code = f'''
-import json
-import os
-from datetime import datetime
-
-config_file_path = "{config_file_path}"
-server_info = {{
-    "name": "{server_name}",
-    "file_path": "{server_file_path}",
-    "description": "{description}",
-    "host": "{host}",
-    "port": {port},
-    "http_path": "{http_path}",
-    "transport": "{transport}",
-    "tools": {tools},
-    "environment_variables": {environment_variables},
-    "created_at": datetime.now().isoformat(),
-    "url": f"http://{host}:{port}{http_path}" if "{transport}" == "http" else None
-}}
-
-# Load existing config or create new one
-if os.path.exists(config_file_path):
-    with open(config_file_path, 'r') as f:
-        config = json.load(f)
-else:
-    config = {{
-        "mcp_servers": [],
-        "metadata": {{
-            "created_at": datetime.now().isoformat(),
-            "last_updated": datetime.now().isoformat()
-        }}
-    }}
-
-# Update or add server
-existing_server = None
-for i, server in enumerate(config["mcp_servers"]):
-    if server["name"] == "{server_name}":
-        existing_server = i
-        break
-
-if existing_server is not None:
-    config["mcp_servers"][existing_server] = server_info
-    print(f"Updated existing server '{{server_info['name']}}' in {{config_file_path}}")
-else:
-    config["mcp_servers"].append(server_info)
-    print(f"Added new server '{{server_info['name']}}' to {{config_file_path}}")
-
-# Update metadata
-config["metadata"]["last_updated"] = datetime.now().isoformat()
-
-# Write updated config
-with open(config_file_path, 'w') as f:
-    json.dump(config, f, indent=2, ensure_ascii=False)
-
-print(f"MCP server registration complete. Config saved to {{config_file_path}}")
-print(f"Server details:")
-print(f"  Name: {{server_info['name']}}")
-print(f"  Host: {{server_info['host']}}")
-print(f"  Port: {{server_info['port']}}")
-print(f"  Transport: {{server_info['transport']}}")
-print(f"  Tools: {{len(server_info['tools'])}}")
-'''
-    
-    return IPythonRunCellAction(code=register_code)
+    # Create the action to create the MCP server file using FileEditAction
+    return FileEditAction(
+        path=file_path,
+        command='create',
+        file_text=server_content,
+        impl_source=FileEditSource.OH_ACI
+    )
 
 
 def _handle_verify_dsl_integrity(arguments: dict) -> Action:
@@ -1434,3 +1217,59 @@ dsl_validation_result = validation_result
 '''
     
     return IPythonRunCellAction(code=validation_code) 
+
+
+def _handle_finalize_system(arguments: dict) -> Action:
+    """Handle the finalize_system tool call."""
+    project_path = arguments['project_path']
+    system_summary = arguments['system_summary']
+    flows_created = arguments['flows_created']
+    deployment_type = arguments.get('deployment_type', 'local')
+    testing_requirements = arguments.get('testing_requirements', [])
+    integration_notes = arguments.get('integration_notes', '')
+    
+    # Create comprehensive README content
+    readme_content = f"""# Task-Based Conversational System
+
+## System Overview
+{system_summary}
+
+## Flows Created
+{chr(10).join(f'- **{flow}**' for flow in flows_created)}
+
+## Deployment
+**Type**: {deployment_type}
+
+### Setup Instructions
+1. Navigate to the project directory: `cd {project_path}`
+2. Install dependencies: `pip install -r requirements.txt`
+3. Configure environment variables (see config/ directory)
+4. Run the system: `python main.py`
+
+## Testing
+{chr(10).join(f'- {req}' for req in testing_requirements) if testing_requirements else '- Standard conversation flow testing recommended'}
+
+## Integration Notes
+{integration_notes if integration_notes else 'No special integration requirements'}
+
+## Flow Configuration Files
+Each flow has its detailed configuration in the `flows_config/` directory:
+{chr(10).join(f'- `flows_config/{flow}_config.md`' for flow in flows_created)}
+
+## Next Steps
+1. Review each flow configuration file
+2. Implement the conversation logic based on the specifications
+3. Test individual flows
+4. Test the complete system integration
+5. Deploy according to the chosen deployment method
+
+## Support
+Refer to the documentation in the `docs/` directory for detailed implementation guidelines.
+"""
+    
+    return FileEditAction(
+        path=f'{project_path}/README.md',
+        command='create',
+        file_text=readme_content,
+        impl_source=FileEditSource.OH_ACI
+    )

@@ -1,0 +1,32 @@
+# Agent Builder MCP Server Configuration
+# This file provides example configurations for integrating the Agent Builder MCP server with OpenHands
+
+[mcp]
+# Production configuration using HTTP transport (recommended)
+# Start the server separately: python @mcp_servers/agent_builder_mcp.py --port 8001
+shttp_servers = [
+    {url="http://localhost:8001/mcp", api_key=""}
+]
+
+# Alternative: Direct stdio server configuration (development only)
+# stdio_servers = [
+#     {
+#         name="agent_builder",
+#         command="python",
+#         args=["@mcp_servers/agent_builder_mcp.py"],
+#         env={
+#             "AGENT_BUILDER_API_TOKEN": "your-api-token-here",
+#             "AGENT_BUILDER_API_BASE_URL": "http://localhost:8000"
+#         }
+#     }
+# ]
+
+# Environment Variables Configuration
+# Set these environment variables before running the MCP server:
+#
+# AGENT_BUILDER_API_TOKEN - Your authentication token for the Agent Builder Backend
+# AGENT_BUILDER_API_BASE_URL - Base URL of your Agent Builder Backend (default: http://localhost:8000)
+# MCP_HTTP_HOST - Host for HTTP transport (default: 127.0.0.1)
+# MCP_HTTP_PORT - Port for HTTP transport (default: 8001)
+# MCP_HTTP_PATH - Path for HTTP transport (default: /mcp)
+# MCP_TRANSPORT - Transport type (stdio, http, streamable-http) (default: stdio)

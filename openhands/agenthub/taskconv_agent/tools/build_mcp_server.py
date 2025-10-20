@@ -65,7 +65,7 @@ BuildMcpServerTool = ChatCompletionToolParam(
                 },
                 'default_base_url': {
                     'type': 'string',
-                    'description': 'Default base URL for API calls if environment variable is not set',
+                    'description': 'Base URL for API calls if environment variable is not set, mandatory if uses_external_api is True',
                     'default': 'http://localhost:8080'
                 },
                 'default_port': {
@@ -82,6 +82,19 @@ BuildMcpServerTool = ChatCompletionToolParam(
                     'type': 'integer',
                     'description': 'Timeout in seconds for API requests',
                     'default': 30
+                },
+                'default_headers': {
+                    'type': 'object',
+                    'description': (
+                        'Default headers to include in all API requests. Common use cases: '
+                        '{"Authorization": "Bearer TOKEN"}, {"Content-Type": "application/json"}, '
+                        '{"X-API-Key": "your-api-key"}. Headers can reference environment variables '
+                        'by using the format "${ENV_VAR_NAME}". Example: {"Authorization": "Bearer ${API_TOKEN}"}'
+                    ),
+                    'additionalProperties': {
+                        'type': 'string'
+                    },
+                    'default': {}
                 }
             },
             'required': ['agent_name', 'server_name', 'server_description', 'functional_tools_code']

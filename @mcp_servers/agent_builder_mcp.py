@@ -361,7 +361,7 @@ def save_generated_artifacts(
     Args:
         agent_id: UUID of the agent to save artifacts for
         artifacts: List of artifact dictionaries, each containing:
-                  - artifact_type: Type ("dsl_json", "mcp_server_code", "mcp_config", "other")
+                  - artifact_type: Type ("dsl_json", "mcp_server_code", "mcp_config", "agent_config", "mcp_server_code_docs","mcp_server_code_tests","other")
                   - name: Artifact name (e.g., "agent_definition.json")
                   - content: The actual artifact content
                   - mime_type: Content MIME type (e.g., "application/json", "text/x-python")
